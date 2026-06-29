@@ -1,4 +1,4 @@
-name: Update VPM Repository
+name: Build VPM Package
 
 on:
   workflow_dispatch:
