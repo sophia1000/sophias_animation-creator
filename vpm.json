@@ -2,9 +2,7 @@
     "name":  "Sophia\u0027s VPM Packages",
     "id":  "com.sophia.vpm",
     "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/vpm.json",
-    "author":  {
-                   "name":  "Sophia"
-               },
+    "author":  "Sophia \u003csophia1000@users.noreply.github.com\u003e",
     "packages":  {
                      "com.sophia.animation-creator":  {
                                                           "versions":  {
@@ -15,7 +13,8 @@
                                                                                          "unity":  "2022.3",
                                                                                          "description":  "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
                                                                                          "author":  {
-                                                                                                        "name":  "Sophia"
+                                                                                                        "name":  "Sophia",
+                                                                                                        "email":  "sophia1000@users.noreply.github.com"
                                                                                                     },
                                                                                          "changelogUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
                                                                                          "documentationUrl":  "https://github.com/sophia1000/sophias_animation-creator#readme",
@@ -30,8 +29,9 @@
                                                                                          "vpmDependencies":  {
 
                                                                                                              },
+                                                                                         "license":  "MIT",
                                                                                          "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.0.zip",
-                                                                                         "zipSHA256":  "f00332f4ad73887de86b5c4f45ecf4161453701091e69cac0b98a0a91ca1a1be"
+                                                                                         "zipSHA256":  "a53e6c6a1bd6ed367ed14959bae30f51bc13cf7bc684c5a324378866e43ad30b"
                                                                                      }
                                                                        }
                                                       }

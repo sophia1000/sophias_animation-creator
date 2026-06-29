@@ -1,9 +1,9 @@
-param(
+﻿param(
     [string]$RepositoryUrl = "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/vpm.json",
     [string]$PackageBaseUrl = "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist",
     [string]$RepositoryName = "Sophia's VPM Packages",
     [string]$RepositoryId = "com.sophia.vpm",
-    [string]$AuthorName = "Sophia"
+    [string]$AuthorName = "Sophia <sophia1000@users.noreply.github.com>"
 )
 
 $ErrorActionPreference = "Stop"
@@ -93,7 +93,7 @@ else {
 Set-JsonProperty $Repository "name" $RepositoryName
 Set-JsonProperty $Repository "id" $RepositoryId
 Set-JsonProperty $Repository "url" $RepositoryUrl
-Set-JsonProperty $Repository "author" ([PSCustomObject]@{ name = $AuthorName })
+Set-JsonProperty $Repository "author" $AuthorName
 
 $Packages = Get-JsonProperty $Repository "packages"
 if ($null -eq $Packages) {
@@ -123,3 +123,4 @@ Remove-Item -LiteralPath $StagePath -Recurse -Force
 
 Write-Host "Built $ZipPath"
 Write-Host "Updated $RepositoryJsonPath with $($Package.name) $($Package.version)"
+
