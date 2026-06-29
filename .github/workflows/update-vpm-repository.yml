@@ -1,0 +1,47 @@
+name: Update VPM Repository
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - Editor/**
+      - README.md
+      - CHANGELOG.md
+      - LICENSE.md
+      - Tools/BuildVpmRepository.ps1
+      - .github/workflows/update-vpm-repository.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-vpm-repository:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build VPM repository files
+        shell: pwsh
+        run: |
+          ./Tools/BuildVpmRepository.ps1 `
+            -RepositoryUrl "https://raw.githubusercontent.com/${{ github.repository }}/main/vpm.json" `
+            -PackageBaseUrl "https://raw.githubusercontent.com/${{ github.repository }}/main/dist"
+
+      - name: Commit generated repository files
+        shell: bash
+        run: |
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "No generated changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vpm.json dist/
+          git commit -m "Update VPM repository"
+          git push
