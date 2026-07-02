@@ -74,6 +74,8 @@ Get-ChildItem -LiteralPath $PackageRoot -Force | Where-Object {
     Copy-Item -LiteralPath $_.FullName -Destination $StagePath -Recurse -Force
 }
 
+Get-ChildItem -LiteralPath $StagePath -Recurse -Force -Filter "*.meta" | Remove-Item -Force
+
 if (Test-Path -LiteralPath $ZipPath) {
     Remove-Item -LiteralPath $ZipPath -Force
 }
@@ -125,5 +127,4 @@ Remove-Item -LiteralPath $StagePath -Recurse -Force
 
 Write-Host "Built $ZipPath"
 Write-Host "Updated $RepositoryJsonPath with $($Package.name) $($Package.version)"
-
 

@@ -494,7 +494,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
             return;
         }
 
-        List<BindingSearchResult> results = BuildPropertySearchResults(propertySearch);
+        List<BindingSearchResult> results = GetCachedPropertySearchResults(propertySearch);
         if (results.Count == 0)
         {
             EditorGUILayout.LabelField("No matching animatable float properties found on the current objects.", miniMutedStyle);
@@ -2169,7 +2169,4 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         }
     }
 }
-
-
-
 

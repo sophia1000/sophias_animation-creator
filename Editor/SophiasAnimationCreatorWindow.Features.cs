@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -123,7 +124,20 @@ public partial class SophiasAnimationCreatorWindow
     private List<ComponentSearchOption> cachedVrchatComponentOptions;
     private List<ComponentSearchOption> cachedModularAvatarComponentOptions;
     private List<ComponentSearchOption> cachedVrcFuryComponentOptions;
-
+    private string cachedComponentPickerSignature;
+    private List<ComponentSearchOption> cachedComponentPickerResults;
+    private string cachedScopedComponentCountsSignature;
+    private Dictionary<string, int> cachedScopedComponentCounts;
+    private string cachedAllScopedComponentOptionsSignature;
+    private List<ComponentSearchOption> cachedAllScopedComponentOptions;
+    private string cachedPropertySearchSignature;
+    private List<BindingSearchResult> cachedPropertySearchResults;
+    private string cachedMaterialPropertySearchSignature;
+    private List<BindingSearchResult> cachedMaterialPropertySearchResults;
+    private static List<Type> cachedAllLoadedTypes;
+    private static List<Type> cachedAllLoadedComponentTypes;
+    private static readonly Dictionary<string, Type> cachedTypeLookup = new Dictionary<string, Type>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, MemberInfo> cachedMemberLookup = new Dictionary<string, MemberInfo>(StringComparer.Ordinal);
     private void FeatureOnEnable()
     {
         LoadSavedSetups();
@@ -141,12 +155,27 @@ public partial class SophiasAnimationCreatorWindow
     private void OnFocus()
     {
         TryAssignActiveAvatarRoot(false);
+        InvalidateSearchCaches();
     }
 
     private void OnSelectionChange()
     {
         TryAssignActiveAvatarRoot(false);
+        InvalidateSearchCaches();
         ResetPassiveCaptureSnapshot();
+        Repaint();
+    }
+
+    private void OnHierarchyChange()
+    {
+        InvalidateSearchCaches();
+        ResetPassiveCaptureSnapshot();
+        Repaint();
+    }
+
+    private void OnProjectChange()
+    {
+        InvalidateSearchCaches();
         Repaint();
     }
 
@@ -247,7 +276,7 @@ public partial class SophiasAnimationCreatorWindow
             componentPickerSearch = "";
         EditorGUILayout.EndHorizontal();
 
-        List<ComponentSearchOption> matches = BuildFilteredComponentPickerResults();
+        List<ComponentSearchOption> matches = GetCachedComponentPickerResults();
         if (matches.Count == 0)
         {
             EditorGUILayout.LabelField("No matching components found in the current object search scope.", miniMutedStyle);
@@ -293,7 +322,7 @@ public partial class SophiasAnimationCreatorWindow
             return;
         }
 
-        List<BindingSearchResult> results = BuildMaterialPropertySearchResults(materialPropertySearch);
+        List<BindingSearchResult> results = GetCachedMaterialPropertySearchResults(materialPropertySearch);
         if (results.Count == 0)
         {
             EditorGUILayout.LabelField("No matching material properties found on the current objects.", miniMutedStyle);
@@ -805,6 +834,97 @@ public partial class SophiasAnimationCreatorWindow
         return results;
     }
 
+    private List<ComponentSearchOption> GetCachedComponentPickerResults()
+    {
+        string signature = BuildComponentPickerSignature();
+        if (cachedComponentPickerResults != null && cachedComponentPickerSignature == signature)
+            return cachedComponentPickerResults;
+
+        cachedComponentPickerSignature = signature;
+        cachedComponentPickerResults = BuildFilteredComponentPickerResults();
+        return cachedComponentPickerResults;
+    }
+
+    private List<BindingSearchResult> GetCachedPropertySearchResults(string query)
+    {
+        string signature = BuildPropertySearchSignature(query, false);
+        if (cachedPropertySearchResults != null && cachedPropertySearchSignature == signature)
+            return cachedPropertySearchResults;
+
+        cachedPropertySearchSignature = signature;
+        cachedPropertySearchResults = BuildPropertySearchResults(query);
+        return cachedPropertySearchResults;
+    }
+
+    private List<BindingSearchResult> GetCachedMaterialPropertySearchResults(string query)
+    {
+        string signature = BuildPropertySearchSignature(query, true);
+        if (cachedMaterialPropertySearchResults != null && cachedMaterialPropertySearchSignature == signature)
+            return cachedMaterialPropertySearchResults;
+
+        cachedMaterialPropertySearchSignature = signature;
+        cachedMaterialPropertySearchResults = BuildMaterialPropertySearchResults(query);
+        return cachedMaterialPropertySearchResults;
+    }
+
+    private void InvalidateSearchCaches()
+    {
+        cachedComponentPickerSignature = null;
+        cachedComponentPickerResults = null;
+        cachedScopedComponentCountsSignature = null;
+        cachedScopedComponentCounts = null;
+        cachedAllScopedComponentOptionsSignature = null;
+        cachedAllScopedComponentOptions = null;
+        cachedPropertySearchSignature = null;
+        cachedPropertySearchResults = null;
+        cachedMaterialPropertySearchSignature = null;
+        cachedMaterialPropertySearchResults = null;
+    }
+
+    private string BuildComponentPickerSignature()
+    {
+        return (int)componentSearchFilter + "|" + NormalizeSearchQuery(componentPickerSearch) + "|" + BuildSearchScopeSignature();
+    }
+
+    private string BuildPropertySearchSignature(string query, bool materialOnly)
+    {
+        GameObject root = GetEffectiveRoot();
+        int rootId = root != null ? root.GetInstanceID() : 0;
+        return (materialOnly ? "m|" : "p|") + NormalizeSearchQuery(query) + "|" + rootId + "|" + BuildTargetListSignature();
+    }
+
+    private string BuildSearchScopeSignature()
+    {
+        StringBuilder builder = new StringBuilder();
+        builder.Append(includeInactiveSearch ? '1' : '0').Append('|');
+        foreach (Transform root in GetSearchRoots())
+        {
+            if (root == null)
+                continue;
+
+            builder.Append(root.GetInstanceID()).Append(':').Append(root.childCount).Append(':').Append(root.name).Append('|');
+        }
+
+        return builder.ToString();
+    }
+
+    private string BuildTargetListSignature()
+    {
+        List<int> ids = ValidTargets().Select(target => target.GetInstanceID()).ToList();
+        ids.Sort();
+
+        StringBuilder builder = new StringBuilder();
+        foreach (int id in ids)
+            builder.Append(id).Append('|');
+
+        return builder.ToString();
+    }
+
+    private static string NormalizeSearchQuery(string query)
+    {
+        return string.IsNullOrWhiteSpace(query) ? "" : query.Trim().ToLowerInvariant();
+    }
+
     private List<ComponentSearchOption> BuildFilteredComponentPickerResults()
     {
         List<ComponentSearchOption> source;
@@ -863,6 +983,10 @@ public partial class SophiasAnimationCreatorWindow
 
     private List<ComponentSearchOption> GetAllScopedComponentOptions()
     {
+        string signature = BuildSearchScopeSignature();
+        if (cachedAllScopedComponentOptions != null && cachedAllScopedComponentOptionsSignature == signature)
+            return cachedAllScopedComponentOptions;
+
         Dictionary<string, int> counts = BuildScopedComponentCounts();
         List<ComponentSearchOption> options = new List<ComponentSearchOption>();
         HashSet<string> seen = new HashSet<string>();
@@ -890,7 +1014,9 @@ public partial class SophiasAnimationCreatorWindow
             }
         }
 
-        return options;
+        cachedAllScopedComponentOptionsSignature = signature;
+        cachedAllScopedComponentOptions = options;
+        return cachedAllScopedComponentOptions;
     }
 
     private List<ComponentSearchOption> GetUnityComponentOptions()
@@ -1084,6 +1210,10 @@ public partial class SophiasAnimationCreatorWindow
 
     private Dictionary<string, int> BuildScopedComponentCounts()
     {
+        string signature = BuildSearchScopeSignature();
+        if (cachedScopedComponentCounts != null && cachedScopedComponentCountsSignature == signature)
+            return cachedScopedComponentCounts;
+
         Dictionary<string, int> counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (Transform root in GetSearchRoots())
         {
@@ -1100,7 +1230,9 @@ public partial class SophiasAnimationCreatorWindow
             }
         }
 
-        return counts;
+        cachedScopedComponentCountsSignature = signature;
+        cachedScopedComponentCounts = counts;
+        return cachedScopedComponentCounts;
     }
 
     private static void AddComponentCount(Dictionary<string, int> counts, string key)
@@ -1206,6 +1338,21 @@ public partial class SophiasAnimationCreatorWindow
 
     private static IEnumerable<Type> GetAllLoadedComponentTypes()
     {
+        if (cachedAllLoadedComponentTypes != null)
+            return cachedAllLoadedComponentTypes;
+
+        cachedAllLoadedComponentTypes = GetAllLoadedTypes()
+            .Where(type => type != null && !type.IsAbstract && !type.IsGenericTypeDefinition && typeof(Component).IsAssignableFrom(type))
+            .ToList();
+        return cachedAllLoadedComponentTypes;
+    }
+
+    private static List<Type> GetAllLoadedTypes()
+    {
+        if (cachedAllLoadedTypes != null)
+            return cachedAllLoadedTypes;
+
+        List<Type> result = new List<Type>();
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             Type[] types;
@@ -1224,13 +1371,13 @@ public partial class SophiasAnimationCreatorWindow
 
             foreach (Type type in types)
             {
-                if (type == null || type.IsAbstract || type.IsGenericTypeDefinition)
-                    continue;
-
-                if (typeof(Component).IsAssignableFrom(type))
-                    yield return type;
+                if (type != null)
+                    result.Add(type);
             }
         }
+
+        cachedAllLoadedTypes = result;
+        return cachedAllLoadedTypes;
     }
 
     private static bool IsVrchatComponentType(Type type)
@@ -1267,28 +1414,26 @@ public partial class SophiasAnimationCreatorWindow
         if (string.IsNullOrEmpty(typeName))
             return null;
 
+        Type cached;
+        if (cachedTypeLookup.TryGetValue(typeName, out cached))
+            return cached;
+
         Type direct = Type.GetType(typeName);
-        if (direct != null)
-            return direct;
-
-        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+        if (direct == null)
         {
-            Type type = assembly.GetType(typeName);
-            if (type != null)
-                return type;
-
-            try
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                type = assembly.GetTypes().FirstOrDefault(candidate => candidate != null && (candidate.FullName == typeName || candidate.Name == typeName));
-                if (type != null)
-                    return type;
-            }
-            catch (Exception)
-            {
+                direct = assembly.GetType(typeName);
+                if (direct != null)
+                    break;
             }
         }
 
-        return null;
+        if (direct == null)
+            direct = GetAllLoadedTypes().FirstOrDefault(candidate => candidate != null && (candidate.FullName == typeName || candidate.Name == typeName));
+
+        cachedTypeLookup[typeName] = direct;
+        return direct;
     }
 
     private void SetPassiveCaptureSubscription(bool enabled)
@@ -1877,10 +2022,9 @@ public partial class SophiasAnimationCreatorWindow
         if (target == null || string.IsNullOrEmpty(memberName))
             return null;
 
-        Type type = target.GetType();
-        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        PropertyInfo property = type.GetProperty(memberName, flags);
-        if (property != null && property.GetIndexParameters().Length == 0)
+        MemberInfo member = GetCachedMember(target.GetType(), memberName);
+        PropertyInfo property = member as PropertyInfo;
+        if (property != null)
         {
             try
             {
@@ -1888,10 +2032,11 @@ public partial class SophiasAnimationCreatorWindow
             }
             catch (Exception)
             {
+                return null;
             }
         }
 
-        FieldInfo field = type.GetField(memberName, flags);
+        FieldInfo field = member as FieldInfo;
         if (field != null)
         {
             try
@@ -1900,10 +2045,34 @@ public partial class SophiasAnimationCreatorWindow
             }
             catch (Exception)
             {
+                return null;
             }
         }
 
         return null;
+    }
+
+    private static MemberInfo GetCachedMember(Type type, string memberName)
+    {
+        if (type == null || string.IsNullOrEmpty(memberName))
+            return null;
+
+        string key = type.AssemblyQualifiedName + "|" + memberName;
+        MemberInfo cached;
+        if (cachedMemberLookup.TryGetValue(key, out cached))
+            return cached;
+
+        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        PropertyInfo property = type.GetProperty(memberName, flags);
+        if (property != null && property.GetIndexParameters().Length == 0)
+        {
+            cachedMemberLookup[key] = property;
+            return property;
+        }
+
+        FieldInfo field = type.GetField(memberName, flags);
+        cachedMemberLookup[key] = field;
+        return field;
     }
 
     private static float? GetNullableFloatMember(object target, string memberName)
@@ -1941,6 +2110,4 @@ public partial class SophiasAnimationCreatorWindow
         return value.ToString("0.###");
     }
 }
-
-
 
