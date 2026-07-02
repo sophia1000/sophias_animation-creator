@@ -1,4 +1,20 @@
-﻿# Changelog
+# Changelog
+
+## 1.0.3
+
+### Changed
+
+- Material Swap now uses the tool's Objects list instead of the current Unity hierarchy selection.
+- Material Swap labels and button text now say they operate on Objects list renderers.
+- Object Search fallback now uses the Objects list when no Search Under or Animation Root is set, instead of using selected hierarchy roots.
+- Passive Record Mode snapshot polling now watches the Objects list instead of the current hierarchy selection.
+- Quick Add helper text now explains that objects are added through Add Selected or object fields.
+
+### Package
+
+- Bumped the package version to `1.0.3`.
+- Added the `1.0.3` package entry to `vpm.json` while keeping previous versions available.
+- Built `dist/com.sophia.animation-creator-1.0.3.zip`.
 
 ## 1.0.2
 

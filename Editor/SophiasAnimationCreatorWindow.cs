@@ -391,7 +391,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         EditorGUILayout.LabelField("Scope: " + (searchRoot != null ? GetTargetLabel(searchRoot) : "None"), miniMutedStyle);
 
         EditorGUILayout.BeginHorizontal();
-        objectNameSearch = EditorGUILayout.TextField(new GUIContent("Name Contains", "Searches under Animation Root, or selected roots if no root is set."), objectNameSearch);
+        objectNameSearch = EditorGUILayout.TextField(new GUIContent("Name Contains", "Searches under Search Under, Animation Root/avatar, or the Objects list."), objectNameSearch);
         using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(objectNameSearch)))
         {
             if (GUILayout.Button("Add Matches", GUILayout.Width(100f)))
@@ -425,7 +425,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
 
         DrawComponentSearchDropdowns();
 
-        EditorGUILayout.LabelField("Search source is Search Under first, then Animation Root/avatar, then selected hierarchy roots.", miniMutedStyle);
+        EditorGUILayout.LabelField("Search source is Search Under first, then Animation Root/avatar, then the Objects list.", miniMutedStyle);
         EditorGUILayout.EndVertical();
     }
 
@@ -450,7 +450,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
             activeQuickAddMode = QuickAddMode.None;
         EditorGUILayout.EndHorizontal();
 
-        EditorGUILayout.LabelField("Click a mode once, then select objects in Unity. The selected objects keep that property setup until you switch modes or turn it off.", miniMutedStyle);
+        EditorGUILayout.LabelField("Choose a mode, then use Add Selected or drag objects into the Objects list. New objects keep that property setup until you switch modes or turn it off.", miniMutedStyle);
         EditorGUILayout.EndVertical();
     }
 
@@ -462,20 +462,19 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
 
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         materialSwapMaterial = (Material)EditorGUILayout.ObjectField(new GUIContent("Swap Material", "Material to key onto renderer material slots."), materialSwapMaterial, typeof(Material), false);
-        materialSwapAllSlots = EditorGUILayout.Toggle(new GUIContent("All Material Slots", "Off keys only slot 0. On keys every material slot on each selected renderer."), materialSwapAllSlots);
+        materialSwapAllSlots = EditorGUILayout.Toggle(new GUIContent("All Material Slots", "Off keys only slot 0. On keys every material slot on each renderer in the Objects list."), materialSwapAllSlots);
 
-        List<GameObject> selected = Selection.gameObjects.Where(go => go != null).Distinct().ToList();
-        selected.Sort(CompareHierarchyOrder);
-        int rendererCount = selected.Count(go => go.GetComponent<Renderer>() != null);
-        EditorGUILayout.LabelField("Selected renderers: " + rendererCount, miniMutedStyle);
+        List<GameObject> objectListTargets = ValidTargets();
+        int rendererCount = objectListTargets.Count(go => go.GetComponent<Renderer>() != null);
+        EditorGUILayout.LabelField("Object list renderers: " + rendererCount, miniMutedStyle);
 
         using (new EditorGUI.DisabledScope(materialSwapMaterial == null || rendererCount == 0))
         {
-            if (GUILayout.Button("Add Material Swap For Selected", GUILayout.Height(28f)))
-                AddMaterialSwapForSelected();
+            if (GUILayout.Button("Add Material Swap For Objects", GUILayout.Height(28f)))
+                AddMaterialSwapForObjects();
         }
 
-        EditorGUILayout.LabelField("Two-key clips keep the current slot material at frame 0 and swap to this material at the final frame. Copy/apply writes one frame.", miniMutedStyle);
+        EditorGUILayout.LabelField("Uses the Objects list, not the current hierarchy selection. Two-key clips keep the current slot material at frame 0 and swap to this material at the final frame. Copy/apply writes one frame.", miniMutedStyle);
         EditorGUILayout.EndVertical();
     }
     private void DrawPropertySearch()
@@ -961,17 +960,8 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
             }
             else
             {
-                GameObject[] selected = Selection.gameObjects.Where(go => go != null).ToArray();
-                if (selected.Length > 0)
-                {
-                    foreach (Transform transform in TopLevelTransforms(selected.Select(go => go.transform)))
-                        roots.Add(transform);
-                }
-                else
-                {
-                    foreach (GameObject target in ValidTargets())
-                        roots.Add(target.transform);
-                }
+                foreach (GameObject target in ValidTargets())
+                    roots.Add(target.transform);
             }
         }
 
@@ -1133,16 +1123,16 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         }
     }
 
-    private void AddMaterialSwapForSelected()
+    private void AddMaterialSwapForObjects()
     {
         if (materialSwapMaterial == null)
             return;
 
-        List<GameObject> selected = Selection.gameObjects.Where(go => go != null).Distinct().ToList();
-        selected.Sort(CompareHierarchyOrder);
+        List<GameObject> objectListTargets = ValidTargets();
+        objectListTargets.Sort(CompareHierarchyOrder);
         int changed = 0;
 
-        foreach (GameObject target in selected)
+        foreach (GameObject target in objectListTargets)
         {
             Renderer renderer = target.GetComponent<Renderer>();
             if (renderer == null)
@@ -1184,7 +1174,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
             }
         }
 
-        ShowNotification(new GUIContent(changed > 0 ? "Added material swap keys" : "No renderer slots added"));
+        ShowNotification(new GUIContent(changed > 0 ? "Added material swap keys" : "No renderer slots added from Objects list"));
     }
 
     private static string GetMaterialSlotPropertyName(int slot)

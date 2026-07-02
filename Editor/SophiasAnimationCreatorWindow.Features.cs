@@ -1513,13 +1513,7 @@ public partial class SophiasAnimationCreatorWindow
     private Dictionary<string, PassiveFloatValue> GatherPassiveCaptureValues()
     {
         Dictionary<string, PassiveFloatValue> values = new Dictionary<string, PassiveFloatValue>();
-        List<GameObject> selected = Selection.gameObjects.Where(go => go != null).Distinct().ToList();
-        selected.Sort(CompareHierarchyOrder);
-
-        if (selected.Count == 0)
-            selected = ValidTargets();
-
-        foreach (GameObject target in selected)
+        foreach (GameObject target in ValidTargets())
             AddPassiveValuesForTarget(target, values);
 
         return values;
