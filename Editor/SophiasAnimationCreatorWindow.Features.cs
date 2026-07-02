@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -19,6 +19,7 @@ public partial class SophiasAnimationCreatorWindow
 
     private enum ComponentSearchFilter
     {
+        All,
         Unity,
         UnityCommon,
         VRChat,
@@ -31,6 +32,7 @@ public partial class SophiasAnimationCreatorWindow
         public string Label;
         public Type Type;
         public string[] TypeNames;
+        public int InstanceCount;
     }
 
     private sealed class AnimationWindowInfo
@@ -89,6 +91,9 @@ public partial class SophiasAnimationCreatorWindow
         public int ManualIndex;
         public bool UseCustomValue;
         public float CustomValue;
+        public bool IsObjectReference;
+        public string ObjectReferenceAssetPath;
+        public int ObjectReferenceIndex;
     }
 
     [SerializeField] private CopyApplyTargetMode copyApplyTargetMode = CopyApplyTargetMode.AnimationWindow;
@@ -99,7 +104,7 @@ public partial class SophiasAnimationCreatorWindow
     [SerializeField] private bool listenForAvatarChanges;
     [SerializeField] private string materialPropertySearch = "";
     [SerializeField] private bool materialSearchFoldout;
-    [SerializeField] private ComponentSearchFilter componentSearchFilter = ComponentSearchFilter.UnityCommon;
+    [SerializeField] private ComponentSearchFilter componentSearchFilter = ComponentSearchFilter.All;
     [SerializeField] private string componentPickerSearch = "";
 
     private readonly List<SavedSetupData> savedSetups = new List<SavedSetupData>();
@@ -235,7 +240,7 @@ public partial class SophiasAnimationCreatorWindow
         EditorGUILayout.LabelField("Component Picker", EditorStyles.miniBoldLabel);
 
         EditorGUILayout.BeginHorizontal();
-        string[] filterLabels = { "Unity", "Unity Common", "VRChat", "Modular Avatar", "VRCFury" };
+        string[] filterLabels = { "All", "Unity", "Unity Common", "VRChat", "Modular Avatar", "VRCFury" };
         componentSearchFilter = (ComponentSearchFilter)EditorGUILayout.Popup(new GUIContent("Filter"), (int)componentSearchFilter, filterLabels);
         componentPickerSearch = EditorGUILayout.TextField(new GUIContent("Search"), componentPickerSearch);
         if (GUILayout.Button("Clear", GUILayout.Width(48f)))
@@ -245,7 +250,7 @@ public partial class SophiasAnimationCreatorWindow
         List<ComponentSearchOption> matches = BuildFilteredComponentPickerResults();
         if (matches.Count == 0)
         {
-            EditorGUILayout.LabelField("No matching components found in this category.", miniMutedStyle);
+            EditorGUILayout.LabelField("No matching components found in the current object search scope.", miniMutedStyle);
             return;
         }
 
@@ -268,6 +273,8 @@ public partial class SophiasAnimationCreatorWindow
 
         if (matches.Count > MaxSearchResults)
             EditorGUILayout.LabelField("Showing first " + MaxSearchResults + " of " + matches.Count + " matches. Type more to narrow it down.", miniMutedStyle);
+
+        EditorGUILayout.LabelField("Component picker only shows component types found under the current object search scope.", miniMutedStyle);
     }
 
     private void DrawMaterialPropertySearch()
@@ -354,12 +361,35 @@ public partial class SophiasAnimationCreatorWindow
         if (root == null)
             return;
 
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Space(32f);
+
+        if (spec.IsObjectReference)
+        {
+            UnityEngine.Object sceneObject;
+            bool hasSceneObject = TryReadCurrentObjectReferenceValue(spec, out sceneObject);
+            GUILayout.Label("Material", GUILayout.Width(52f));
+            spec.CustomObjectReferenceValue = EditorGUILayout.ObjectField(spec.CustomObjectReferenceValue, typeof(Material), false, GUILayout.Width(130f));
+
+            using (new EditorGUI.DisabledScope(!hasSceneObject))
+            {
+                if (GUILayout.Button("Grab", GUILayout.Width(46f)))
+                    spec.CustomObjectReferenceValue = sceneObject;
+            }
+
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.ObjectField(sceneObject, typeof(Material), false, GUILayout.Width(100f));
+            }
+
+            EditorGUILayout.EndHorizontal();
+            return;
+        }
+
         EditorCurveBinding binding = MakeRuntimeBinding(spec, root);
         float sceneValue;
         bool hasSceneValue = TryReadCurrentSceneValue(spec, root, binding, out sceneValue);
 
-        EditorGUILayout.BeginHorizontal();
-        GUILayout.Space(32f);
         spec.UseCustomValue = true;
         GUILayout.Label("Value", GUILayout.Width(42f));
         if (spec.IsToggleLike)
@@ -518,7 +548,10 @@ public partial class SophiasAnimationCreatorWindow
                     ManualKind = (int)spec.ManualKind,
                     ManualIndex = spec.ManualIndex,
                     UseCustomValue = spec.UseCustomValue,
-                    CustomValue = spec.CustomValue
+                    CustomValue = spec.CustomValue,
+                    IsObjectReference = spec.IsObjectReference,
+                    ObjectReferenceAssetPath = spec.CustomObjectReferenceValue != null ? AssetDatabase.GetAssetPath(spec.CustomObjectReferenceValue) : "",
+                    ObjectReferenceIndex = spec.ObjectReferenceIndex
                 });
             }
 
@@ -588,7 +621,10 @@ public partial class SophiasAnimationCreatorWindow
                     ManualKind = (ManualValueKind)Mathf.Clamp(savedSpec.ManualKind, 0, 3),
                     ManualIndex = savedSpec.ManualIndex,
                     UseCustomValue = true,
-                    CustomValue = savedSpec.CustomValue
+                    CustomValue = savedSpec.CustomValue,
+                    IsObjectReference = savedSpec.IsObjectReference,
+                    CustomObjectReferenceValue = !string.IsNullOrEmpty(savedSpec.ObjectReferenceAssetPath) ? AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(savedSpec.ObjectReferenceAssetPath) : null,
+                    ObjectReferenceIndex = savedSpec.ObjectReferenceIndex
                 };
 
                 set.Specs.Add(spec);
@@ -774,6 +810,9 @@ public partial class SophiasAnimationCreatorWindow
         List<ComponentSearchOption> source;
         switch (componentSearchFilter)
         {
+            case ComponentSearchFilter.All:
+                source = GetAllScopedComponentOptions();
+                break;
             case ComponentSearchFilter.Unity:
                 source = GetUnityComponentOptions();
                 break;
@@ -790,18 +829,68 @@ public partial class SophiasAnimationCreatorWindow
                 source = GetVrcFuryComponentOptions();
                 break;
             default:
-                source = GetUnityCommonComponentOptions();
+                source = GetAllScopedComponentOptions();
                 break;
         }
 
+        Dictionary<string, int> componentCounts = BuildScopedComponentCounts();
+        List<ComponentSearchOption> scopedSource = new List<ComponentSearchOption>();
+        foreach (ComponentSearchOption option in source)
+        {
+            ResolveFallbackType(option);
+            int count = GetScopedComponentCount(option, componentCounts);
+            if (count <= 0)
+                continue;
+
+            scopedSource.Add(new ComponentSearchOption
+            {
+                Label = option.Label,
+                Type = option.Type,
+                TypeNames = option.TypeNames,
+                InstanceCount = count
+            });
+        }
+
         string query = componentPickerSearch != null ? componentPickerSearch.Trim() : "";
-        IEnumerable<ComponentSearchOption> matches = source;
+        IEnumerable<ComponentSearchOption> matches = scopedSource;
         if (!string.IsNullOrEmpty(query))
         {
             matches = matches.Where(option => ComponentOptionMatches(option, query));
         }
 
-        return matches.OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase).ToList();
+        return matches.OrderByDescending(option => option.InstanceCount).ThenBy(option => option.Label, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private List<ComponentSearchOption> GetAllScopedComponentOptions()
+    {
+        Dictionary<string, int> counts = BuildScopedComponentCounts();
+        List<ComponentSearchOption> options = new List<ComponentSearchOption>();
+        HashSet<string> seen = new HashSet<string>();
+
+        foreach (Transform root in GetSearchRoots())
+        {
+            Component[] components = root.GetComponentsInChildren<Component>(includeInactiveSearch);
+            foreach (Component component in components)
+            {
+                if (component == null)
+                    continue;
+
+                Type type = component.GetType();
+                string fullName = type.FullName ?? type.Name;
+                if (!seen.Add(fullName))
+                    continue;
+
+                options.Add(new ComponentSearchOption
+                {
+                    Label = type.Name,
+                    Type = type,
+                    TypeNames = new[] { fullName, type.Name },
+                    InstanceCount = GetScopedComponentCount(new ComponentSearchOption { Type = type, TypeNames = new[] { fullName, type.Name } }, counts)
+                });
+            }
+        }
+
+        return options;
     }
 
     private List<ComponentSearchOption> GetUnityComponentOptions()
@@ -993,15 +1082,73 @@ public partial class SophiasAnimationCreatorWindow
         return false;
     }
 
+    private Dictionary<string, int> BuildScopedComponentCounts()
+    {
+        Dictionary<string, int> counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (Transform root in GetSearchRoots())
+        {
+            Component[] components = root.GetComponentsInChildren<Component>(includeInactiveSearch);
+            foreach (Component component in components)
+            {
+                if (component == null)
+                    continue;
+
+                Type type = component.GetType();
+                AddComponentCount(counts, type.Name);
+                if (!string.IsNullOrEmpty(type.FullName))
+                    AddComponentCount(counts, type.FullName);
+            }
+        }
+
+        return counts;
+    }
+
+    private static void AddComponentCount(Dictionary<string, int> counts, string key)
+    {
+        if (string.IsNullOrEmpty(key))
+            return;
+
+        int count;
+        counts.TryGetValue(key, out count);
+        counts[key] = count + 1;
+    }
+
+    private int GetScopedComponentCount(ComponentSearchOption option, Dictionary<string, int> counts)
+    {
+        if (option == null || counts == null)
+            return 0;
+
+        ResolveFallbackType(option);
+        int count;
+        if (option.Type != null)
+        {
+            if (!string.IsNullOrEmpty(option.Type.FullName) && counts.TryGetValue(option.Type.FullName, out count))
+                return count;
+
+            if (counts.TryGetValue(option.Type.Name, out count))
+                return count;
+        }
+
+        if (option.TypeNames != null)
+        {
+            foreach (string typeName in option.TypeNames)
+            {
+                if (!string.IsNullOrEmpty(typeName) && counts.TryGetValue(typeName, out count))
+                    return count;
+            }
+        }
+
+        return 0;
+    }
     private string GetComponentOptionDisplayLabel(ComponentSearchOption option)
     {
         if (option == null)
             return "Missing";
 
         if (option.Type != null && !string.IsNullOrEmpty(option.Type.Namespace))
-            return option.Label + "    " + option.Type.Namespace;
+            return option.Label + " (" + option.InstanceCount + ")    " + option.Type.Namespace;
 
-        return option.Label;
+        return option.Label + " (" + option.InstanceCount + ")";
     }
 
     private void ResolveFallbackType(ComponentSearchOption option)
@@ -1794,3 +1941,6 @@ public partial class SophiasAnimationCreatorWindow
         return value.ToString("0.###");
     }
 }
+
+
+

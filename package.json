@@ -1,7 +1,7 @@
 ﻿{
     "name":  "com.sophia.animation-creator",
     "displayName":  "Sophia\u0027s Animation Creator",
-    "version":  "1.0.0",
+    "version":  "1.0.1",
     "unity":  "2022.3",
     "description":  "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
     "author":  {

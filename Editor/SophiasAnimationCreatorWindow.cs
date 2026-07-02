@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -50,6 +50,9 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         public int ManualIndex = -1;
         public bool UseCustomValue = true;
         public float CustomValue;
+        public bool IsObjectReference;
+        public UnityEngine.Object CustomObjectReferenceValue;
+        public int ObjectReferenceIndex = -1;
         public bool IsQuickAdd;
 
         public bool IsToggleLike
@@ -75,9 +78,18 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         public bool IsToggleLike;
     }
 
+    private sealed class CapturedObjectReference
+    {
+        public EditorCurveBinding Binding;
+        public UnityEngine.Object StartValue;
+        public UnityEngine.Object Value;
+        public string Label;
+    }
+
     private sealed class CopyBuffer
     {
         public readonly List<CapturedFloat> Keys = new List<CapturedFloat>();
+        public readonly List<CapturedObjectReference> ObjectKeys = new List<CapturedObjectReference>();
         public float FrameRate;
         public string RootName;
         public DateTime CapturedAt;
@@ -103,9 +115,12 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
     [SerializeField] private AnimationClip pasteTargetClip;
     [SerializeField] private int pasteFrame;
     [SerializeField] private bool includeInactiveSearch = true;
+    [SerializeField] private GameObject objectSearchScopeRoot;
     [SerializeField] private string objectNameSearch = "";
     [SerializeField] private string componentNameSearch = "";
     [SerializeField] private string propertySearch = "";
+    [SerializeField] private Material materialSwapMaterial;
+    [SerializeField] private bool materialSwapAllSlots;
     [SerializeField] private List<GameObject> targets = new List<GameObject>();
     [SerializeField] private QuickAddMode activeQuickAddMode = QuickAddMode.None;
 
@@ -116,6 +131,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
     private bool objectSearchFoldout = true;
     private bool favoritesFoldout = true;
     private bool quickAddFoldout = true;
+    private bool materialSwapFoldout = true;
     private bool propertySearchFoldout = true;
     private bool chosenPropertiesFoldout = true;
     private bool copyFoldout = true;
@@ -162,6 +178,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         DrawObjectSearch();
         DrawFavorites();
         DrawQuickAdd();
+        DrawMaterialSwap();
         DrawMaterialPropertySearch();
         DrawPropertySearch();
         DrawChosenProperties();
@@ -286,9 +303,9 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
                 }
                 pasteFrame = Mathf.Max(0, EditorGUILayout.IntField(new GUIContent("Apply At Frame", "Frame index in the target clip."), pasteFrame));
 
-                if (copiedBuffer != null && copiedBuffer.Keys.Count > 0)
+                if (copiedBuffer != null && copiedBuffer.Keys.Count + copiedBuffer.ObjectKeys.Count > 0)
                 {
-                    EditorGUILayout.LabelField("Copied: " + copiedBuffer.Keys.Count + " keys from " + copiedBuffer.RootName + " at " + copiedBuffer.CapturedAt.ToShortTimeString(), miniMutedStyle);
+                    EditorGUILayout.LabelField("Copied: " + (copiedBuffer.Keys.Count + copiedBuffer.ObjectKeys.Count) + " keys from " + copiedBuffer.RootName + " at " + copiedBuffer.CapturedAt.ToShortTimeString(), miniMutedStyle);
                 }
                 else
                 {
@@ -362,6 +379,18 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         includeInactiveSearch = EditorGUILayout.Toggle(new GUIContent("Include Inactive", "Search inactive children under the selected root objects."), includeInactiveSearch);
 
         EditorGUILayout.BeginHorizontal();
+        objectSearchScopeRoot = (GameObject)EditorGUILayout.ObjectField(new GUIContent("Search Under", "Optional. Narrows object and component search to this object and its children."), objectSearchScopeRoot, typeof(GameObject), true);
+        using (new EditorGUI.DisabledScope(objectSearchScopeRoot == null))
+        {
+            if (GUILayout.Button("Clear", GUILayout.Width(52f)))
+                objectSearchScopeRoot = null;
+        }
+        EditorGUILayout.EndHorizontal();
+
+        GameObject searchRoot = GetPrimarySearchRootObject();
+        EditorGUILayout.LabelField("Scope: " + (searchRoot != null ? GetTargetLabel(searchRoot) : "None"), miniMutedStyle);
+
+        EditorGUILayout.BeginHorizontal();
         objectNameSearch = EditorGUILayout.TextField(new GUIContent("Name Contains", "Searches under Animation Root, or selected roots if no root is set."), objectNameSearch);
         using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(objectNameSearch)))
         {
@@ -396,7 +425,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
 
         DrawComponentSearchDropdowns();
 
-        EditorGUILayout.LabelField("Search source is Animation Root first, then selected hierarchy roots.", miniMutedStyle);
+        EditorGUILayout.LabelField("Search source is Search Under first, then Animation Root/avatar, then selected hierarchy roots.", miniMutedStyle);
         EditorGUILayout.EndVertical();
     }
 
@@ -425,6 +454,30 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         EditorGUILayout.EndVertical();
     }
 
+    private void DrawMaterialSwap()
+    {
+        materialSwapFoldout = BeginFoldoutPanel(materialSwapFoldout, "Material Swap");
+        if (!materialSwapFoldout)
+            return;
+
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+        materialSwapMaterial = (Material)EditorGUILayout.ObjectField(new GUIContent("Swap Material", "Material to key onto renderer material slots."), materialSwapMaterial, typeof(Material), false);
+        materialSwapAllSlots = EditorGUILayout.Toggle(new GUIContent("All Material Slots", "Off keys only slot 0. On keys every material slot on each selected renderer."), materialSwapAllSlots);
+
+        List<GameObject> selected = Selection.gameObjects.Where(go => go != null).Distinct().ToList();
+        selected.Sort(CompareHierarchyOrder);
+        int rendererCount = selected.Count(go => go.GetComponent<Renderer>() != null);
+        EditorGUILayout.LabelField("Selected renderers: " + rendererCount, miniMutedStyle);
+
+        using (new EditorGUI.DisabledScope(materialSwapMaterial == null || rendererCount == 0))
+        {
+            if (GUILayout.Button("Add Material Swap For Selected", GUILayout.Height(28f)))
+                AddMaterialSwapForSelected();
+        }
+
+        EditorGUILayout.LabelField("Two-key clips keep the current slot material at frame 0 and swap to this material at the final frame. Copy/apply writes one frame.", miniMutedStyle);
+        EditorGUILayout.EndVertical();
+    }
     private void DrawPropertySearch()
     {
         propertySearchFoldout = BeginFoldoutPanel(propertySearchFoldout, "Component And Property Search");
@@ -524,15 +577,17 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         List<string> warnings;
         List<CapturedFloat> preview = CaptureCurrentValues(out warnings);
+        List<CapturedObjectReference> objectPreview = CaptureObjectReferenceValues(warnings);
+        int readyKeyCount = preview.Count + objectPreview.Count;
 
-        EditorGUILayout.LabelField("Ready Keys: " + preview.Count, EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Ready Keys: " + readyKeyCount, EditorStyles.boldLabel);
         foreach (string warning in warnings.Take(4))
             EditorGUILayout.HelpBox(warning, MessageType.Warning);
 
         if (warnings.Count > 4)
             EditorGUILayout.HelpBox((warnings.Count - 4) + " more warnings hidden.", MessageType.Warning);
 
-        using (new EditorGUI.DisabledScope(preview.Count == 0))
+        using (new EditorGUI.DisabledScope(readyKeyCount == 0))
         {
             if (operationMode == OperationMode.CreateClip)
             {
@@ -545,7 +600,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
                 if (GUILayout.Button("Copy Current One Frame", GUILayout.Height(34f)))
                     CopyCurrentFrame();
 
-                using (new EditorGUI.DisabledScope(copiedBuffer == null || copiedBuffer.Keys.Count == 0 || GetCurrentPasteTargetClip() == null))
+                using (new EditorGUI.DisabledScope(copiedBuffer == null || copiedBuffer.Keys.Count + copiedBuffer.ObjectKeys.Count == 0 || GetCurrentPasteTargetClip() == null))
                 {
                     if (GUILayout.Button("Apply Copied Frame To Clip", GUILayout.Height(34f)))
                         ApplyCopiedFrameToClip();
@@ -591,7 +646,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         if (!current.control || current.keyCode != KeyCode.V)
             return;
 
-        if (operationMode != OperationMode.CopyApply || copiedBuffer == null || copiedBuffer.Keys.Count == 0 || GetCurrentPasteTargetClip() == null)
+        if (operationMode != OperationMode.CopyApply || copiedBuffer == null || copiedBuffer.Keys.Count + copiedBuffer.ObjectKeys.Count == 0 || GetCurrentPasteTargetClip() == null)
             return;
 
         ApplyCopiedFrameToClip();
@@ -700,6 +755,26 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         GameObject root = ResolveRootForTarget(spec.Target);
         if (root == null)
             return;
+
+        if (spec.IsObjectReference)
+        {
+            UnityEngine.Object sceneObject;
+            bool hasSceneObject = TryReadCurrentObjectReferenceValue(spec, out sceneObject);
+            spec.CustomObjectReferenceValue = EditorGUILayout.ObjectField(spec.CustomObjectReferenceValue, typeof(Material), false, GUILayout.Width(110f));
+
+            using (new EditorGUI.DisabledScope(!hasSceneObject))
+            {
+                if (GUILayout.Button("Grab", GUILayout.Width(44f)))
+                    spec.CustomObjectReferenceValue = sceneObject;
+            }
+
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.ObjectField(sceneObject, typeof(Material), false, GUILayout.Width(90f));
+            }
+
+            return;
+        }
 
         float sceneValue;
         bool hasSceneValue = TryReadCurrentSceneValue(spec, root, MakeRuntimeBinding(spec, root), out sceneValue);
@@ -869,26 +944,44 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
     {
         List<Transform> roots = new List<Transform>();
 
-        if (animationRoot != null)
+        if (objectSearchScopeRoot != null)
+        {
+            roots.Add(objectSearchScopeRoot.transform);
+        }
+        else if (animationRoot != null)
         {
             roots.Add(animationRoot.transform);
         }
         else
         {
-            GameObject[] selected = Selection.gameObjects.Where(go => go != null).ToArray();
-            if (selected.Length > 0)
+            TryAssignActiveAvatarRoot(false);
+            if (animationRoot != null)
             {
-                foreach (Transform transform in TopLevelTransforms(selected.Select(go => go.transform)))
-                    roots.Add(transform);
+                roots.Add(animationRoot.transform);
             }
             else
             {
-                foreach (GameObject target in ValidTargets())
-                    roots.Add(target.transform);
+                GameObject[] selected = Selection.gameObjects.Where(go => go != null).ToArray();
+                if (selected.Length > 0)
+                {
+                    foreach (Transform transform in TopLevelTransforms(selected.Select(go => go.transform)))
+                        roots.Add(transform);
+                }
+                else
+                {
+                    foreach (GameObject target in ValidTargets())
+                        roots.Add(target.transform);
+                }
             }
         }
 
         return TopLevelTransforms(roots);
+    }
+
+    private GameObject GetPrimarySearchRootObject()
+    {
+        Transform root = GetSearchRoots().FirstOrDefault();
+        return root != null ? root.gameObject : null;
     }
 
     private void AddObjectToggles()
@@ -1040,6 +1133,64 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         }
     }
 
+    private void AddMaterialSwapForSelected()
+    {
+        if (materialSwapMaterial == null)
+            return;
+
+        List<GameObject> selected = Selection.gameObjects.Where(go => go != null).Distinct().ToList();
+        selected.Sort(CompareHierarchyOrder);
+        int changed = 0;
+
+        foreach (GameObject target in selected)
+        {
+            Renderer renderer = target.GetComponent<Renderer>();
+            if (renderer == null)
+                continue;
+
+            Material[] materials = renderer.sharedMaterials;
+            int slotCount = Mathf.Max(1, materials != null ? materials.Length : 0);
+            int slotsToAdd = materialSwapAllSlots ? slotCount : 1;
+            List<BindingSpec> specs = new List<BindingSpec>();
+
+            for (int slot = 0; slot < slotsToAdd; slot++)
+            {
+                string propertyName = GetMaterialSlotPropertyName(slot);
+                BindingSpec existing = FindExistingSpec(target, typeof(Renderer), propertyName);
+                if (existing != null && existing.IsObjectReference)
+                {
+                    existing.CustomObjectReferenceValue = materialSwapMaterial;
+                    changed++;
+                    continue;
+                }
+
+                specs.Add(new BindingSpec
+                {
+                    Target = target,
+                    SourceComponent = renderer,
+                    BindingType = typeof(Renderer),
+                    PropertyName = propertyName,
+                    Label = "Material Slot " + slot,
+                    IsObjectReference = true,
+                    CustomObjectReferenceValue = materialSwapMaterial,
+                    ObjectReferenceIndex = slot
+                });
+            }
+
+            if (specs.Count > 0)
+            {
+                AddBindingSet(target, renderer, GetTargetLabel(target) + " / Material Swap", specs, false);
+                changed += specs.Count;
+            }
+        }
+
+        ShowNotification(new GUIContent(changed > 0 ? "Added material swap keys" : "No renderer slots added"));
+    }
+
+    private static string GetMaterialSlotPropertyName(int slot)
+    {
+        return "m_Materials.Array.data[" + Mathf.Max(0, slot) + "]";
+    }
     private void AddMaterialProperties()
     {
         materialSearchFoldout = true;
@@ -1253,6 +1404,12 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         {
             foreach (BindingSpec spec in set.Specs)
             {
+                if (spec == null)
+                    continue;
+
+                if (spec.IsObjectReference)
+                    continue;
+
                 if (spec.Target == null)
                 {
                     warnings.Add("A chosen property has a missing target.");
@@ -1291,6 +1448,79 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         return captured;
     }
 
+    private List<CapturedObjectReference> CaptureObjectReferenceValues(List<string> warnings)
+    {
+        List<CapturedObjectReference> captured = new List<CapturedObjectReference>();
+        HashSet<string> seenBindings = new HashSet<string>();
+
+        foreach (PropertySet set in propertySets)
+        {
+            foreach (BindingSpec spec in set.Specs)
+            {
+                if (spec == null || !spec.IsObjectReference)
+                    continue;
+
+                if (spec.Target == null)
+                {
+                    warnings.Add("A chosen material swap has a missing target.");
+                    continue;
+                }
+
+                GameObject root = ResolveRootForTarget(spec.Target);
+                if (root == null)
+                {
+                    warnings.Add("No usable root for " + spec.Target.name + ".");
+                    continue;
+                }
+
+                if (spec.CustomObjectReferenceValue == null)
+                {
+                    warnings.Add("No material set for " + spec.Label + " on " + spec.Target.name + ".");
+                    continue;
+                }
+
+                EditorCurveBinding binding = MakeRuntimeBinding(spec, root);
+                string bindingKey = GetBindingKey(binding);
+                if (!seenBindings.Add(bindingKey))
+                    continue;
+
+                UnityEngine.Object sceneObject;
+                if (!TryReadCurrentObjectReferenceValue(spec, out sceneObject))
+                    sceneObject = spec.CustomObjectReferenceValue;
+
+                captured.Add(new CapturedObjectReference
+                {
+                    Binding = binding,
+                    StartValue = sceneObject,
+                    Value = spec.CustomObjectReferenceValue,
+                    Label = spec.Label
+                });
+            }
+        }
+
+        return captured;
+    }
+
+    private bool TryReadCurrentObjectReferenceValue(BindingSpec spec, out UnityEngine.Object value)
+    {
+        value = null;
+        if (spec == null || !spec.IsObjectReference)
+            return false;
+
+        Renderer renderer = spec.SourceComponent as Renderer;
+        if (renderer == null && spec.Target != null)
+            renderer = spec.Target.GetComponent<Renderer>();
+
+        if (renderer == null || spec.ObjectReferenceIndex < 0)
+            return false;
+
+        Material[] materials = renderer.sharedMaterials;
+        if (materials == null || spec.ObjectReferenceIndex >= materials.Length)
+            return false;
+
+        value = materials[spec.ObjectReferenceIndex];
+        return true;
+    }
     private bool TryReadValue(BindingSpec spec, GameObject root, EditorCurveBinding binding, out float value)
     {
         value = spec.CustomValue;
@@ -1304,6 +1534,9 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         if (spec.Target != null && root != null && spec.Target != root)
             path = AnimationUtility.CalculateTransformPath(spec.Target.transform, root.transform);
 
+        if (spec.IsObjectReference)
+            return EditorCurveBinding.PPtrCurve(path, spec.BindingType, spec.PropertyName);
+
         return EditorCurveBinding.FloatCurve(path, spec.BindingType, spec.PropertyName);
     }
 
@@ -1311,7 +1544,8 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
     {
         List<string> warnings;
         List<CapturedFloat> captured = CaptureCurrentValues(out warnings);
-        if (captured.Count == 0)
+        List<CapturedObjectReference> capturedObjects = CaptureObjectReferenceValues(warnings);
+        if (captured.Count + capturedObjects.Count == 0)
         {
             EditorUtility.DisplayDialog("No Keys To Create", "Add objects and properties first.", "OK");
             return;
@@ -1339,6 +1573,9 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
             AnimationUtility.SetEditorCurve(clip, key.Binding, curve);
         }
 
+        foreach (CapturedObjectReference key in capturedObjects)
+            SetObjectReferenceCurve(clip, key.Binding, key.StartValue, key.Value, singleKey, endTime);
+
         if (loopClip)
         {
             AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(clip);
@@ -1351,7 +1588,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         AssetDatabase.Refresh();
         EditorGUIUtility.PingObject(clip);
         Selection.activeObject = clip;
-        ShowNotification(new GUIContent("Created " + captured.Count + " keys"));
+        ShowNotification(new GUIContent("Created " + (captured.Count + capturedObjects.Count) + " keys"));
     }
 
     private void CopyCurrentFrame()
@@ -1361,7 +1598,8 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
 
         List<string> warnings;
         List<CapturedFloat> captured = CaptureCurrentValues(out warnings);
-        if (captured.Count == 0)
+        List<CapturedObjectReference> capturedObjects = CaptureObjectReferenceValues(warnings);
+        if (captured.Count + capturedObjects.Count == 0)
         {
             EditorUtility.DisplayDialog("No Keys To Copy", "Add objects and properties first.", "OK");
             return;
@@ -1375,13 +1613,14 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         };
 
         copiedBuffer.Keys.AddRange(captured);
+        copiedBuffer.ObjectKeys.AddRange(capturedObjects);
         AnimationClip nativeTargetClip = GetNativeClipboardSourceClip();
-        bool copiedNative = TryCopyCurrentFrameToUnityAnimationClipboard(captured, nativeTargetClip);
+        bool copiedNative = capturedObjects.Count == 0 && TryCopyCurrentFrameToUnityAnimationClipboard(captured, nativeTargetClip);
         if (copiedNative)
             ScheduleNativeClipboardRetry(captured, nativeTargetClip);
 
         EditorGUIUtility.systemCopyBuffer = copiedNative ? string.Empty : BuildClipboardSummary(copiedBuffer);
-        ShowNotification(new GUIContent((copiedNative ? "Copied native " : "Copied ") + captured.Count + " one-frame keys"));
+        ShowNotification(new GUIContent((copiedNative ? "Copied native " : "Copied ") + (captured.Count + capturedObjects.Count) + " one-frame keys"));
     }
 
     private bool TryCopyCurrentFrameToUnityAnimationClipboard(List<CapturedFloat> captured, AnimationClip targetClip)
@@ -1492,7 +1731,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
             return;
         }
 
-        if (copiedBuffer == null || copiedBuffer.Keys.Count == 0)
+        if (copiedBuffer == null || copiedBuffer.Keys.Count + copiedBuffer.ObjectKeys.Count == 0)
         {
             EditorUtility.DisplayDialog("Nothing Copied", "Copy a frame first.", "OK");
             return;
@@ -1508,10 +1747,13 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         foreach (CapturedFloat key in copiedBuffer.Keys)
             AddOrReplaceKey(targetClip, key.Binding, time, key.Value);
 
+        foreach (CapturedObjectReference key in copiedBuffer.ObjectKeys)
+            AddOrReplaceObjectReferenceKey(targetClip, key.Binding, time, key.Value);
+
         EditorUtility.SetDirty(targetClip);
         AssetDatabase.SaveAssets();
         EditorGUIUtility.PingObject(targetClip);
-        ShowNotification(new GUIContent("Applied " + copiedBuffer.Keys.Count + " keys"));
+        ShowNotification(new GUIContent("Applied " + (copiedBuffer.Keys.Count + copiedBuffer.ObjectKeys.Count) + " keys"));
     }
 
     private static AnimationCurve BuildCurve(float startValue, float endValue, bool singleKey, float endTime)
@@ -1524,6 +1766,18 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         return curve;
     }
 
+    private static void SetObjectReferenceCurve(AnimationClip clip, EditorCurveBinding binding, UnityEngine.Object startValue, UnityEngine.Object endValue, bool singleKey, float endTime)
+    {
+        List<ObjectReferenceKeyframe> keys = new List<ObjectReferenceKeyframe>
+        {
+            new ObjectReferenceKeyframe { time = 0f, value = singleKey ? endValue : startValue }
+        };
+
+        if (!singleKey)
+            keys.Add(new ObjectReferenceKeyframe { time = endTime, value = endValue });
+
+        AnimationUtility.SetObjectReferenceCurve(clip, binding, keys.ToArray());
+    }
     private static Keyframe MakeKey(float time, float value)
     {
         Keyframe key = new Keyframe(time, value)
@@ -1552,6 +1806,14 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         AnimationUtility.SetEditorCurve(clip, binding, curve);
     }
 
+    private static void AddOrReplaceObjectReferenceKey(AnimationClip clip, EditorCurveBinding binding, float time, UnityEngine.Object value)
+    {
+        ObjectReferenceKeyframe[] existing = AnimationUtility.GetObjectReferenceCurve(clip, binding) ?? new ObjectReferenceKeyframe[0];
+        List<ObjectReferenceKeyframe> keys = existing.Where(key => Mathf.Abs(key.time - time) >= 0.0001f).ToList();
+        keys.Add(new ObjectReferenceKeyframe { time = time, value = value });
+        keys.Sort((a, b) => a.time.CompareTo(b.time));
+        AnimationUtility.SetObjectReferenceCurve(clip, binding, keys.ToArray());
+    }
     private bool EnsureOutputFolder()
     {
         outputFolder = NormalizeAssetPath(outputFolder);
@@ -1602,12 +1864,16 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         List<string> lines = new List<string>();
         lines.Add("Sophia's Animation Creator - one-frame copy");
         lines.Add("Root: " + buffer.RootName);
-        lines.Add("Keys: " + buffer.Keys.Count);
+        lines.Add("Keys: " + (buffer.Keys.Count + buffer.ObjectKeys.Count));
         foreach (CapturedFloat key in buffer.Keys.Take(30))
             lines.Add(key.Binding.path + " | " + key.Binding.type.Name + " | " + key.Binding.propertyName + " = " + key.Value);
 
-        if (buffer.Keys.Count > 30)
-            lines.Add("... " + (buffer.Keys.Count - 30) + " more");
+        foreach (CapturedObjectReference key in buffer.ObjectKeys.Take(Mathf.Max(0, 30 - buffer.Keys.Count)))
+            lines.Add(key.Binding.path + " | " + key.Binding.type.Name + " | " + key.Binding.propertyName + " = " + (key.Value != null ? key.Value.name : "None"));
+
+        int totalKeys = buffer.Keys.Count + buffer.ObjectKeys.Count;
+        if (totalKeys > 30)
+            lines.Add("... " + (totalKeys - 30) + " more");
 
         return string.Join(Environment.NewLine, lines.ToArray());
     }
@@ -1903,3 +2169,7 @@ public partial class SophiasAnimationCreatorWindow : EditorWindow
         }
     }
 }
+
+
+
+

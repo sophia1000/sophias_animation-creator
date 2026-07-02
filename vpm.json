@@ -32,6 +32,33 @@
                                                                                          "license":  "MIT",
                                                                                          "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.0.zip",
                                                                                          "zipSHA256":  "a53e6c6a1bd6ed367ed14959bae30f51bc13cf7bc684c5a324378866e43ad30b"
+                                                                                     },
+                                                                           "1.0.1":  {
+                                                                                         "name":  "com.sophia.animation-creator",
+                                                                                         "displayName":  "Sophia\u0027s Animation Creator",
+                                                                                         "version":  "1.0.1",
+                                                                                         "unity":  "2022.3",
+                                                                                         "description":  "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
+                                                                                         "author":  {
+                                                                                                        "name":  "Sophia",
+                                                                                                        "email":  "sophia1000@users.noreply.github.com"
+                                                                                                    },
+                                                                                         "changelogUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
+                                                                                         "documentationUrl":  "https://github.com/sophia1000/sophias_animation-creator#readme",
+                                                                                         "licensesUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
+                                                                                         "keywords":  [
+                                                                                                          "unity",
+                                                                                                          "vrchat",
+                                                                                                          "animation",
+                                                                                                          "editor",
+                                                                                                          "vpm"
+                                                                                                      ],
+                                                                                         "vpmDependencies":  {
+
+                                                                                                             },
+                                                                                         "license":  "MIT",
+                                                                                         "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.1.zip",
+                                                                                         "zipSHA256":  "d579598c314718461b1134fa28a309caab8689d642b3949735e0fab29456ffe9"
                                                                                      }
                                                                        }
                                                       }

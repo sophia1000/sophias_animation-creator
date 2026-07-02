@@ -67,7 +67,9 @@ New-Item -ItemType Directory -Force -Path $StagePath | Out-Null
 
 $ExcludedTopLevelItems = @(".git", ".github", "Tools", "dist", "vpm.json")
 Get-ChildItem -LiteralPath $PackageRoot -Force | Where-Object {
-    $ExcludedTopLevelItems -notcontains $_.Name
+    $name = $_.Name
+    $baseName = if ($name.EndsWith(".meta", [System.StringComparison]::OrdinalIgnoreCase)) { $name.Substring(0, $name.Length - 5) } else { $name }
+    $ExcludedTopLevelItems -notcontains $name -and $ExcludedTopLevelItems -notcontains $baseName
 } | ForEach-Object {
     Copy-Item -LiteralPath $_.FullName -Destination $StagePath -Recurse -Force
 }
@@ -123,4 +125,5 @@ Remove-Item -LiteralPath $StagePath -Recurse -Force
 
 Write-Host "Built $ZipPath"
 Write-Host "Updated $RepositoryJsonPath with $($Package.name) $($Package.version)"
+
 
