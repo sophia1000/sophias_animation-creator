@@ -1,120 +1,112 @@
-﻿{
-    "name":  "Sophia\u0027s VPM Packages",
-    "id":  "com.sophia.vpm",
-    "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/vpm.json",
-    "author":  "Sophia \u003csophia1000@users.noreply.github.com\u003e",
-    "packages":  {
-                     "com.sophia.animation-creator":  {
-                                                          "versions":  {
-                                                                           "1.0.0":  {
-                                                                                         "name":  "com.sophia.animation-creator",
-                                                                                         "displayName":  "Sophia\u0027s Animation Creator",
-                                                                                         "version":  "1.0.0",
-                                                                                         "unity":  "2022.3",
-                                                                                         "description":  "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
-                                                                                         "author":  {
-                                                                                                        "name":  "Sophia",
-                                                                                                        "email":  "sophia1000@users.noreply.github.com"
-                                                                                                    },
-                                                                                         "changelogUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
-                                                                                         "documentationUrl":  "https://github.com/sophia1000/sophias_animation-creator#readme",
-                                                                                         "licensesUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
-                                                                                         "keywords":  [
-                                                                                                          "unity",
-                                                                                                          "vrchat",
-                                                                                                          "animation",
-                                                                                                          "editor",
-                                                                                                          "vpm"
-                                                                                                      ],
-                                                                                         "vpmDependencies":  {
-
-                                                                                                             },
-                                                                                         "license":  "MIT",
-                                                                                         "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.0.zip",
-                                                                                         "zipSHA256":  "a53e6c6a1bd6ed367ed14959bae30f51bc13cf7bc684c5a324378866e43ad30b"
-                                                                                     },
-                                                                           "1.0.1":  {
-                                                                                         "name":  "com.sophia.animation-creator",
-                                                                                         "displayName":  "Sophia\u0027s Animation Creator",
-                                                                                         "version":  "1.0.1",
-                                                                                         "unity":  "2022.3",
-                                                                                         "description":  "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
-                                                                                         "author":  {
-                                                                                                        "name":  "Sophia",
-                                                                                                        "email":  "sophia1000@users.noreply.github.com"
-                                                                                                    },
-                                                                                         "changelogUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
-                                                                                         "documentationUrl":  "https://github.com/sophia1000/sophias_animation-creator#readme",
-                                                                                         "licensesUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
-                                                                                         "keywords":  [
-                                                                                                          "unity",
-                                                                                                          "vrchat",
-                                                                                                          "animation",
-                                                                                                          "editor",
-                                                                                                          "vpm"
-                                                                                                      ],
-                                                                                         "vpmDependencies":  {
-
-                                                                                                             },
-                                                                                         "license":  "MIT",
-                                                                                         "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.1.zip",
-                                                                                         "zipSHA256":  "d579598c314718461b1134fa28a309caab8689d642b3949735e0fab29456ffe9"
-                                                                                     },
-                                                                           "1.0.2":  {
-                                                                                         "name":  "com.sophia.animation-creator",
-                                                                                         "displayName":  "Sophia\u0027s Animation Creator",
-                                                                                         "version":  "1.0.2",
-                                                                                         "unity":  "2022.3",
-                                                                                         "description":  "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
-                                                                                         "author":  {
-                                                                                                        "name":  "Sophia",
-                                                                                                        "email":  "sophia1000@users.noreply.github.com"
-                                                                                                    },
-                                                                                         "changelogUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
-                                                                                         "documentationUrl":  "https://github.com/sophia1000/sophias_animation-creator#readme",
-                                                                                         "licensesUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
-                                                                                         "keywords":  [
-                                                                                                          "unity",
-                                                                                                          "vrchat",
-                                                                                                          "animation",
-                                                                                                          "editor",
-                                                                                                          "vpm"
-                                                                                                      ],
-                                                                                         "vpmDependencies":  {
-
-                                                                                                             },
-                                                                                         "license":  "MIT",
-                                                                                         "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.2.zip",
-                                                                                         "zipSHA256":  "0c04342ddf3b4a2b70535d48aea6adcdbb8d0c4a452f5cd51d0d04e9adc9bea3"
-                                                                                     },
-                                                                           "1.0.3":  {
-                                                                                         "name":  "com.sophia.animation-creator",
-                                                                                         "displayName":  "Sophia\u0027s Animation Creator",
-                                                                                         "version":  "1.0.3",
-                                                                                         "unity":  "2022.3",
-                                                                                         "description":  "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
-                                                                                         "author":  {
-                                                                                                        "name":  "Sophia",
-                                                                                                        "email":  "sophia1000@users.noreply.github.com"
-                                                                                                    },
-                                                                                         "changelogUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
-                                                                                         "documentationUrl":  "https://github.com/sophia1000/sophias_animation-creator#readme",
-                                                                                         "licensesUrl":  "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
-                                                                                         "keywords":  [
-                                                                                                          "unity",
-                                                                                                          "vrchat",
-                                                                                                          "animation",
-                                                                                                          "editor",
-                                                                                                          "vpm"
-                                                                                                      ],
-                                                                                         "vpmDependencies":  {
-
-                                                                                                             },
-                                                                                         "license":  "MIT",
-                                                                                         "url":  "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.3.zip",
-                                                                                         "zipSHA256":  "71a6bf02b00cb37416699c73093b1e2e8645912f57cf24e9d2a03df80fc8e55a"
-                                                                                     }
-                                                                       }
-                                                      }
-                 }
+{
+  "name": "Sophia's VPM Packages",
+  "id": "com.sophia.vpm",
+  "url": "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/vpm.json",
+  "author": "Sophia <sophia1000@users.noreply.github.com>",
+  "packages": {
+    "com.sophia.animation-creator": {
+      "versions": {
+        "1.0.0": {
+          "name": "com.sophia.animation-creator",
+          "displayName": "Sophia's Animation Creator",
+          "version": "1.0.0",
+          "unity": "2022.3",
+          "description": "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
+          "author": {
+            "name": "Sophia",
+            "email": "sophia1000@users.noreply.github.com"
+          },
+          "changelogUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
+          "documentationUrl": "https://github.com/sophia1000/sophias_animation-creator#readme",
+          "licensesUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
+          "keywords": [
+            "unity",
+            "vrchat",
+            "animation",
+            "editor",
+            "vpm"
+          ],
+          "vpmDependencies": {},
+          "license": "MIT",
+          "url": "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.0.zip",
+          "zipSHA256": "a53e6c6a1bd6ed367ed14959bae30f51bc13cf7bc684c5a324378866e43ad30b"
+        },
+        "1.0.1": {
+          "name": "com.sophia.animation-creator",
+          "displayName": "Sophia's Animation Creator",
+          "version": "1.0.1",
+          "unity": "2022.3",
+          "description": "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
+          "author": {
+            "name": "Sophia",
+            "email": "sophia1000@users.noreply.github.com"
+          },
+          "changelogUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
+          "documentationUrl": "https://github.com/sophia1000/sophias_animation-creator#readme",
+          "licensesUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
+          "keywords": [
+            "unity",
+            "vrchat",
+            "animation",
+            "editor",
+            "vpm"
+          ],
+          "vpmDependencies": {},
+          "license": "MIT",
+          "url": "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.1.zip",
+          "zipSHA256": "d579598c314718461b1134fa28a309caab8689d642b3949735e0fab29456ffe9"
+        },
+        "1.0.2": {
+          "name": "com.sophia.animation-creator",
+          "displayName": "Sophia's Animation Creator",
+          "version": "1.0.2",
+          "unity": "2022.3",
+          "description": "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
+          "author": {
+            "name": "Sophia",
+            "email": "sophia1000@users.noreply.github.com"
+          },
+          "changelogUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
+          "documentationUrl": "https://github.com/sophia1000/sophias_animation-creator#readme",
+          "licensesUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
+          "keywords": [
+            "unity",
+            "vrchat",
+            "animation",
+            "editor",
+            "vpm"
+          ],
+          "vpmDependencies": {},
+          "license": "MIT",
+          "url": "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.2.zip",
+          "zipSHA256": "0c04342ddf3b4a2b70535d48aea6adcdbb8d0c4a452f5cd51d0d04e9adc9bea3"
+        },
+        "1.0.3": {
+          "name": "com.sophia.animation-creator",
+          "displayName": "Sophia's Animation Creator",
+          "version": "1.0.3",
+          "unity": "2022.3",
+          "description": "Editor tool for quickly creating, copying, and applying Unity animation keyframes without entering Unity record mode.",
+          "author": {
+            "name": "Sophia",
+            "email": "sophia1000@users.noreply.github.com"
+          },
+          "changelogUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/CHANGELOG.md",
+          "documentationUrl": "https://github.com/sophia1000/sophias_animation-creator#readme",
+          "licensesUrl": "https://github.com/sophia1000/sophias_animation-creator/blob/main/LICENSE.md",
+          "keywords": [
+            "unity",
+            "vrchat",
+            "animation",
+            "editor",
+            "vpm"
+          ],
+          "vpmDependencies": {},
+          "license": "MIT",
+          "url": "https://raw.githubusercontent.com/sophia1000/sophias_animation-creator/main/dist/com.sophia.animation-creator-1.0.3.zip",
+          "zipSHA256": "7eb2c08e4c0a4eca4fa1cc052702f478d14d2de6f394b57ccbb62cb120ebc2d0"
+        }
+      }
+    }
+  }
 }
